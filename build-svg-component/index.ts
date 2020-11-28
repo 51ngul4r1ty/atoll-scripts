@@ -5,70 +5,7 @@ import * as fs from "https://deno.land/std@0.63.0/fs/mod.ts";
 // utils
 import { addLineToFile } from "./fileChanger.ts";
 import { readFileContents, writeFileContents } from "./fileReaderWriter.ts";
-import { Content, ElementType, parseContent } from "./parser.ts";
-import { spaces, textToLines } from "./stringUtils.ts";
-
-const reformatAttributeName = (attributeName: string): string => {
-    const containsDashes = attributeName.indexOf("-") >= 0;
-    const parts = containsDashes ? attributeName.split("-") : attributeName.split(":");
-    if (parts.length === 1) {
-        return parts[0];
-    }
-    else {
-        let result = "";
-        let first = true;
-        parts.forEach(part => {
-            if (!first) {
-                result += part[0].toUpperCase() + part.substr(1);
-            }
-            else {
-                result += part;
-                first = false;
-            }
-        })
-        return result;
-    }
-};
-
-const reformatParsedContent = (content: Content, indentationSpaceCount: number, applyIndentationToEltLine: boolean): string => {
-    const indentationSpaces = spaces(indentationSpaceCount);
-    const eltLineIndentSpaces = applyIndentationToEltLine ? spaces(indentationSpaceCount) : "";
-    let reformattedAttributes = "";
-    if (!content.attributes.length) {
-        if (content.elementType === ElementType.Opening) {
-            return `${eltLineIndentSpaces}<${content.elementName}>`;
-        }
-        else {
-            // TODO: Deal with BOTH, e.g. <elt />
-            return `${eltLineIndentSpaces}</${content.elementName}>`;
-        }
-    }
-    else {
-        content.attributes.forEach(attribute => {
-            const attributeName = reformatAttributeName(attribute.name);
-            const attributeValue = `"${attribute.value}"`;
-            reformattedAttributes += `${indentationSpaces}    ${attributeName}=${attributeValue}\n`;
-        });
-
-        return `${eltLineIndentSpaces}<${content.elementName}\n`
-            + reformattedAttributes
-            + indentationSpaces + ">";
-    }
-};
-
-const convertEltLine = (line: string, indentationSpaceCount: number, notFirstLine: boolean): string => {
-    const whitespaceStartCount = line.length - line.trimStart().length;
-    const whitespaceEndCount = line.length - line.trimEnd().length;
-    const content = line.trim();
-    const parsedContent = parseContent(content);
-    const totalIndentationSpaceCount = whitespaceStartCount + indentationSpaceCount;
-    if (!parsedContent.elementName) {
-        return "";
-    }
-    return spaces(whitespaceStartCount)
-        + reformatParsedContent(parsedContent, totalIndentationSpaceCount, notFirstLine)
-        + spaces(whitespaceEndCount);
-};
+import { convertSvgToReactComponent } from "./svgToReactConverter.ts";
 
 const getInPlaceIndentationCount = (templateContent: string, replacementText: string): number => {
     const lines = templateContent.split("\n");
@@ -92,26 +29,6 @@ const formatAsComponentName = (assetFileBaseName: string): string => {
     return result;
 };
 
-const convertSvgToReactComponent = (svgAssetText: string, indentationSpaceCount: number): string => {
-    const lines = textToLines(svgAssetText);
-    const remainingLines: string[] = [];
-    let foundStart = false;
-    let lineNumber = 0;
-    lines.forEach(line => {
-        if (line.startsWith("<svg ")) {
-            foundStart = true;
-        }
-        if (foundStart) {
-            lineNumber++;
-            const convertedLine = convertEltLine(line, indentationSpaceCount, lineNumber > 1);
-            if (convertedLine) {
-                remainingLines.push(convertedLine);
-            }
-        }
-    });
-    const result = remainingLines.join("\n");
-    return result;
-}
 
 console.log("");
 console.log("\"build-svg-component\" script version 1.0");
