@@ -1,10 +1,11 @@
 export enum ElementType {
+    None = 0,
     Opening = 1,
     Closing = 2,
     Both = 3
 }
 
-interface Attribute {
+export interface Attribute {
     name: string;
     value: string;
 }
@@ -32,6 +33,7 @@ export const parseContent = (content: string): Content => {
     let state = State.ParsingElementName;
     let attributeName = "";
     let attributeValue = "";
+    let prevNonWhitespaceCh: string | null = null;
     while (idx < content.length) {
         const ch = content[idx];
         if (state === State.ParsingElementName) {
@@ -44,10 +46,11 @@ export const parseContent = (content: string): Content => {
                 elementType = ElementType.Opening;
             }
             else if (ch === ">") {
-                // Do nothing
+                if (prevNonWhitespaceCh === '/') {
+                    elementType = ElementType.Both;
+                }
             }
             else if (ch === "/") {
-                // TODO: This could be CLOSING if we encountered "</" or BOTH if this is "/>"
                 elementType = ElementType.Closing;
             }
             else {
@@ -59,6 +62,12 @@ export const parseContent = (content: string): Content => {
                 state = State.ParsingAttributeName;
                 attributeName = "";
             }
+            else if (ch === ">") {
+                if (prevNonWhitespaceCh === '/') {
+                    elementType = ElementType.Both;
+                }
+                state = State.EndOfElement;
+            }
         }
         else if (state === State.ParsingAttributeName) {
             if (ch === "=") {
@@ -66,7 +75,10 @@ export const parseContent = (content: string): Content => {
                 attributeValue = "";
             }
             else if (ch === ">") {
-                state = State.EndOfElement
+                if (prevNonWhitespaceCh === '/') {
+                    elementType = ElementType.Both;
+                }
+                state = State.EndOfElement;
                 attributes.push({
                     name: attributeName,
                     value: attributeValue
@@ -100,6 +112,9 @@ export const parseContent = (content: string): Content => {
                 attributeValue += ch;
             }
             // TODO: Handle escape quotes? e.g. this may be valid: "\""
+        }
+        if (ch !== " " && ch !== "\t") {
+            prevNonWhitespaceCh = ch;
         }
         idx++;
     }
