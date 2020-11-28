@@ -1,4 +1,10 @@
+// externals
 import * as path from "https://deno.land/std@0.79.0/path/mod.ts";
+import * as fs from "https://deno.land/std@0.63.0/fs/mod.ts";
+
+// utils
+import { addLineToFile } from "./fileChanger.ts";
+import { readFileContents, writeFileContents } from "./fileReaderWriter.ts";
 
 const textToLines = (text: string): string[] => {
     return text.split("\n");
@@ -229,30 +235,34 @@ const convertSvgToReactComponent = (svgAssetText: string, indentationSpaceCount:
     return result;
 }
 
+console.log("");
+console.log("\"build-svg-component\" script version 1.0");
+console.log("========================================");
+console.log("");
+
 if (Deno.args.length !== 1) {
-    console.log('');
-    console.log('build-svg-component expects a single argument: the svg file name in the ./src/assets folder,');
-    console.log('                                               for example, "status-done-icon"');
-    console.log('');
+    console.log("ERROR: Expected a single argument passed at the command line.");
+    console.log("");
+    console.log("An SVG asset file name should be placed in the ./src/assets folder and that name (without \".svg\") should be provided");
+    console.log("when running the script.");
+    console.log("");
+    console.log("For example, from \"atoll-shared\" repo use \"npm run build:react-svg status-done-icon\"");
 }
 else {
     const assetsFileBaseName = Deno.args[0];
     const assetsFileName = assetsFileBaseName.endsWith(".svg") ? assetsFileBaseName : `${assetsFileBaseName}.svg`;
     const assetsFileRelPath = `./src/assets/${assetsFileName}`;
     const assetsFilePath = path.resolve(assetsFileRelPath);
-    console.log(`ASSET: ${assetsFilePath}`); 
-    const readFileContents = async (filePath: string): Promise<string> => {
-        const decoder = new TextDecoder("utf-8");
-        return decoder.decode(await Deno.readFile(filePath));
-    };
-    const writeFileWithContents = async (filePath: string, fileContents: string) => {
-        await Deno.writeTextFile(filePath, fileContents);
-    };
 
     const scriptBasePathUrl = path.dirname(import.meta.url);
     const templatePathUrl = `${scriptBasePathUrl}/templates/svg-component-template-ts.template`;
     const fileUrlPrefix = "file:///";
-    if (templatePathUrl.startsWith(fileUrlPrefix)) {
+    if (!templatePathUrl.startsWith(fileUrlPrefix)) {
+        console.log(`ERROR: ${templatePathUrl} didn't seem to use the correct format- unable to continue`);
+    }
+    else {
+        console.log(`Processing asset: ${assetsFilePath}...`); 
+        console.log('');
         const excludingFileUrl = templatePathUrl.substr(fileUrlPrefix.length);
         const osSpecificPath = excludingFileUrl.replace(/\//gi, path.SEP);
         const templateContents = await readFileContents(osSpecificPath);
@@ -264,11 +274,39 @@ else {
         newFileContents = newFileContents.replace(/\<\<\-NAME\-\>\>/g, componentName);
         const componentFileRelPath = `./src/components/atoms/icons/${componentName}.tsx`;
         const componentFilePath = path.resolve(componentFileRelPath);
-//        console.log(`COMPONENT PATH: ${componentFilePath}`);
-        writeFileWithContents(componentFilePath, newFileContents);
-//        console.log(newFileContents);
-    }
-    else {
-        console.log(`${templatePathUrl} didn't seem to use the correct format- unable to continue`);
+        let oldFileContents: string;
+        let updateNeeded: boolean;
+        if (!fs.existsSync(componentFilePath)) {
+            console.log(`Creating component file: ${componentFilePath}...`);
+            oldFileContents = "";
+            updateNeeded = true;
+        }
+        else {
+            oldFileContents = await readFileContents(componentFilePath);
+            if (oldFileContents === newFileContents) {
+                console.log(`No changes needed for component file: ${componentFilePath}.`);
+                updateNeeded = false;
+            }
+            else {
+                console.log(`Updating component file: ${componentFilePath}...`);
+                updateNeeded = true;
+            }
+        }
+        if (updateNeeded) {
+            writeFileContents(componentFilePath, newFileContents);
+            console.log(`(component file modified)`);
+        }
+        const indexFileRelPath = `./src/components/atoms/icons/index.ts`;
+        const indexFilePath = path.resolve(indexFileRelPath);
+        console.log('');
+        console.log(`Updating index file: ${indexFilePath}...`);
+        const indexFileModified = addLineToFile(indexFilePath, `export * from "./${componentName}";`);
+        if (indexFileModified) {
+            console.log(`Index file successfully updated.`);
+        }
+        else {
+            console.log(`Index file is current, no changes needed.`);
+        }
     }
 }
+console.log('');
