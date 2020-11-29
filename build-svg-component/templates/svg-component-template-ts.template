@@ -13,7 +13,7 @@ import { getFillAndStrokeClassNames } from "../../common/propUtils";
 export type <<-NAME->>Props = StandardInvertibleComponentProps;
 
 export const <<-NAME->>: React.FC<<<-NAME->>Props> = (props) => {
-    const { fillClass } = getFillAndStrokeClassNames(
+    const { fillClass, strokeClass } = getFillAndStrokeClassNames(
         props,
         baseCss.fillInverted,
         baseCss.fill,

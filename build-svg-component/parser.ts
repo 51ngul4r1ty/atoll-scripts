@@ -5,10 +5,20 @@ export enum ElementType {
     Both = 3
 }
 
-export interface Attribute {
+export interface BaseAttribute {
     name: string;
+}
+
+export interface AttributeWithValue extends BaseAttribute {
     value: string;
 }
+
+export interface AttributeWithExactValue extends BaseAttribute {
+    exactValue: string;
+}
+
+export type Attribute = AttributeWithValue | AttributeWithExactValue;
+
 
 enum State {
     ParsingElementName = 0,

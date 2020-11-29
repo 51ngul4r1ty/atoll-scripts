@@ -1,9 +1,10 @@
 // interfaces/types
-import { Attribute, Content, ElementType } from "./parser.ts";
+import { Attribute, AttributeWithExactValue, AttributeWithValue, Content, ElementType } from "./parser.ts";
 
 // utils
 import { spaces, textToLines } from "./stringUtils.ts";
 import { parseContent } from "./parser.ts";
+import { getAttributesWithStyleApplied } from "./styleApplier.ts";
 
 export const reformatAttributeName = (attributeName: string): string => {
     const containsDashes = attributeName.indexOf("-") >= 0;
@@ -50,11 +51,18 @@ export const reformatParsedContent = (content: Content, indentationSpaceCount: n
         }
     }
     else {
-        content.attributes.forEach(attribute => {
+        const allAttributes = getAttributesWithStyleApplied(content.attributes);
+        allAttributes.forEach(attribute => {
             if (includeAttribute(attribute)) {
                 const attributeName = reformatAttributeName(attribute.name);
-                const attributeValue = `"${attribute.value}"`;
-                reformattedAttributes += `${indentationSpaces}    ${attributeName}=${attributeValue}\n`;
+                if ((attribute as AttributeWithExactValue).exactValue) {
+                    const attributeExactValue = (attribute as AttributeWithExactValue).exactValue;
+                    reformattedAttributes += `${indentationSpaces}    ${attributeName}=${attributeExactValue}\n`;
+                }
+                else {
+                    const attributeValue = `"${(attribute as AttributeWithValue).value}"`;
+                    reformattedAttributes += `${indentationSpaces}    ${attributeName}=${attributeValue}\n`;
+                }
             }
         });
 
