@@ -9,6 +9,7 @@ import { StandardInvertibleComponentProps } from "../../common/types";
 
 // utils
 import { getFillAndStrokeClassNames } from "../../common/propUtils";
+import { buildClassName } from "../../../utils/classNameBuilder";
 
 export type <<-NAME->>Props = StandardInvertibleComponentProps;
 
@@ -20,6 +21,8 @@ export const <<-NAME->>: React.FC<<<-NAME->>Props> = (props) => {
         baseCss.strokeInverted,
         baseCss.stroke
     );
+
+    const <<-CLS-NAME-VAR->> = buildClassName(<<-SVG-ELT1-CLS->>, props.className);
 
     return (
         <<-SVG->>

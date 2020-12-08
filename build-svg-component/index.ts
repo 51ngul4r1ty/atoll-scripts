@@ -63,10 +63,29 @@ else {
         const templateContents = await readFileContents(osSpecificPath);
         const svgAssetContents = await readFileContents(assetsFilePath);
         const indentationSpaceCount = getInPlaceIndentationCount(templateContents, "<<-SVG->>");
-        const svgComponentCode = convertSvgToReactComponent(svgAssetContents, indentationSpaceCount);
-        let newFileContents = templateContents.replace(/\<\<\-SVG\-\>\>/g, svgComponentCode);
+        const classNameVariable = "classNameToUse";
+        const svgToReactResult = convertSvgToReactComponent(svgAssetContents, indentationSpaceCount, classNameVariable);
+        let firstEltClassNames: string;
+        if (svgToReactResult.addClassNameFill && svgToReactResult.addClassNameStroke) {
+            firstEltClassNames = "fillClass, strokeClass, ";
+        }
+        else if (svgToReactResult.addClassNameFill) {
+            firstEltClassNames = "fillClass, ";
+        }
+        else if (svgToReactResult.addClassNameStroke) {
+            firstEltClassNames = "strokeClass, ";
+        }
+        else {
+            firstEltClassNames = "";
+        }
+        const svgComponentCode = svgToReactResult.svgComponentCode;
         const componentName = formatAsComponentName(assetsFileBaseName);
+
+        let newFileContents = templateContents.replace(/\<\<\-SVG-ELT1-CLS\-\>\>\,\ /g, firstEltClassNames);
+        newFileContents = newFileContents.replace(/\<\<\-SVG\-\>\>/g, svgComponentCode);
         newFileContents = newFileContents.replace(/\<\<\-NAME\-\>\>/g, componentName);
+        newFileContents = newFileContents.replace(/\<\<\-CLS-NAME-VAR\-\>\>/g, classNameVariable);
+
         const componentFileRelPath = `./src/components/atoms/icons/${componentName}.tsx`;
         const componentFilePath = path.resolve(componentFileRelPath);
         let oldFileContents: string;

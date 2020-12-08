@@ -7,12 +7,29 @@ export const hasDarkValue = (value: string) => {
     return true;
 };
 
-export const getAttributesWithStyleApplied = (attributes: Attribute[]): Attribute[] => {
-    const result: Attribute[] = [];
+export interface EltStyleInfo {
+    addFill: boolean;
+    addStroke: boolean;
+}
+
+export interface AttributesWithStyleAppliedResult {
+    eltStyleInfo: EltStyleInfo;
+    attributes: Attribute[];
+}
+
+export const getAttributesWithStyleApplied = (attributes: Attribute[], classNameToUseInstead: string | null): AttributesWithStyleAppliedResult => {
+    const classNameToUse = classNameToUseInstead ? `{${classNameToUseInstead}}` : null;
+    const result: AttributesWithStyleAppliedResult = {
+        attributes: [],
+        eltStyleInfo: {
+            addFill: false,
+            addStroke: false
+        }
+    };
     let addFill = false;
     let addStroke = false;
     attributes.forEach(attribute => {
-        result.push(attribute);
+        result.attributes.push(attribute);
         if (attribute.name === "fill" && hasDarkValue((attribute as AttributeWithValue).value)) {
             addFill = true;
         }
@@ -23,21 +40,23 @@ export const getAttributesWithStyleApplied = (attributes: Attribute[]): Attribut
     if (addFill || addStroke) {
         let exactValue: string | undefined;
         if (addFill && addStroke) {
-            exactValue = "{fillClass + \" \" + strokeClass}";
+            exactValue = classNameToUse || "{fillClass + \" \" + strokeClass}";
         }
         else if (addFill) {
-            exactValue = "{fillClass}";
+            exactValue = classNameToUse || "{fillClass}";
         }
         else if (addStroke) {
-            exactValue = "{strokeClass}";
+            exactValue = classNameToUse || "{strokeClass}";
         }
         else {
             exactValue = undefined;
         }
-        result.splice(1, 0, {
+        result.attributes.splice(1, 0, {
             name: "className",
             exactValue
         } as AttributeWithExactValue);
     }
+    result.eltStyleInfo.addFill = addFill;
+    result.eltStyleInfo.addStroke = addStroke;
     return result;
 };
