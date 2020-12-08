@@ -4,7 +4,7 @@ import { Attribute, AttributeWithExactValue, AttributeWithValue, Content, Elemen
 // utils
 import { spaces, textToLines } from "./stringUtils.ts";
 import { parseContent } from "./parser.ts";
-import { getAttributesWithStyleApplied } from "./styleApplier.ts";
+import { EltStyleInfo, getAttributesWithStyleApplied } from "./styleApplier.ts";
 
 export const reformatAttributeName = (attributeName: string): string => {
     const containsDashes = attributeName.indexOf("-") >= 0;
@@ -32,27 +32,42 @@ export const includeAttribute = (attribute: Attribute) => {
     return attribute.name.toLowerCase() !== 'style';
 };
 
-export const reformatParsedContent = (content: Content, indentationSpaceCount: number, applyIndentationToEltLine: boolean): string => {
+export interface ReformattedParseContentResult {
+    content: string;
+    eltStyleInfo: EltStyleInfo;
+}
+
+export const reformatParsedContent = (content: Content, indentationSpaceCount: number, applyIndentationToEltLine: boolean, classNameToUseInstead: string | null): ReformattedParseContentResult => {
+    const result: ReformattedParseContentResult = {
+        content: "",
+        eltStyleInfo: {
+            addFill: false,
+            addStroke: false
+        }
+    };
     const indentationSpaces = spaces(indentationSpaceCount);
     const eltLineIndentSpaces = applyIndentationToEltLine ? spaces(indentationSpaceCount) : "";
     let reformattedAttributes = "";
     if (!content.attributes.length) {
         if (content.elementType === ElementType.Opening) {
-            return `${eltLineIndentSpaces}<${content.elementName}>`;
+            result.content = `${eltLineIndentSpaces}<${content.elementName}>`;
+            return result;
         }
         else if (content.elementType === ElementType.Closing) {
-            return `${eltLineIndentSpaces}</${content.elementName}>`;
+            result.content = `${eltLineIndentSpaces}</${content.elementName}>`;
+            return result;
         }
         else if (content.elementType === ElementType.Both) {
-            return `${eltLineIndentSpaces}<${content.elementName} />`;
+            result.content = `${eltLineIndentSpaces}<${content.elementName} />`;
+            return result;
         }
         else {
             throw new Error(`Unexpected condition- elementType is not Opening, Closing or Both, it has value: ${content.elementType}`);
         }
     }
     else {
-        const allAttributes = getAttributesWithStyleApplied(content.attributes);
-        allAttributes.forEach(attribute => {
+        const styleApplierResult = getAttributesWithStyleApplied(content.attributes, classNameToUseInstead);
+        styleApplierResult.attributes.forEach(attribute => {
             if (includeAttribute(attribute)) {
                 const attributeName = reformatAttributeName(attribute.name);
                 if ((attribute as AttributeWithExactValue).exactValue) {
@@ -67,16 +82,19 @@ export const reformatParsedContent = (content: Content, indentationSpaceCount: n
         });
 
         const closingChars = content.elementType === ElementType.Both ? "/>" : ">";
-        return `${eltLineIndentSpaces}<${content.elementName}\n${reformattedAttributes}${indentationSpaces}${closingChars}`;
+        result.content = `${eltLineIndentSpaces}<${content.elementName}\n${reformattedAttributes}${indentationSpaces}${closingChars}`;
+        result.eltStyleInfo = styleApplierResult.eltStyleInfo;
+        return result;
     }
 };
 
 export interface EltLineContent {
     text: string;
     elementType: ElementType;
+    eltStyleInfo: EltStyleInfo;
 }
 
-export const convertEltLine = (line: string, indentationSpaceCount: number, notFirstLine: boolean): EltLineContent => {
+export const convertEltLine = (line: string, indentationSpaceCount: number, notFirstLine: boolean, firstLineClassNameToUse: string): EltLineContent => {
     const content = line.trim();
     const parsedContent = parseContent(content);
     const elementTypeAdjust = parsedContent.elementType === ElementType.Closing ? -4 : 0;
@@ -84,16 +102,34 @@ export const convertEltLine = (line: string, indentationSpaceCount: number, notF
     if (!parsedContent.elementName) {
         return {
             text: "",
-            elementType: ElementType.None
+            elementType: ElementType.None,
+            eltStyleInfo: {
+                addFill: false,
+                addStroke: false
+            }
         };
     }
+    const classNameToUseInstead = notFirstLine ? null : firstLineClassNameToUse;
+    const result = reformatParsedContent(parsedContent, totalIndentationSpaceCount, notFirstLine, classNameToUseInstead);
     return {
-        text: reformatParsedContent(parsedContent, totalIndentationSpaceCount, notFirstLine),
-        elementType: parsedContent.elementType
+        text: result.content,
+        elementType: parsedContent.elementType,
+        eltStyleInfo: result.eltStyleInfo
     };
 };
 
-export const convertSvgToReactComponent = (svgAssetText: string, indentationSpaceCount: number): string => {
+export interface ConvertSvgToReactComponentResult {
+    svgComponentCode: string;
+    addClassNameStroke: boolean;
+    addClassNameFill: boolean;
+}
+
+export const convertSvgToReactComponent = (svgAssetText: string, indentationSpaceCount: number, classNameVariable: string): ConvertSvgToReactComponentResult => {
+    const result: ConvertSvgToReactComponentResult = {
+        svgComponentCode: "",
+        addClassNameFill: false,
+        addClassNameStroke: false
+    };
     const lines = textToLines(svgAssetText);
     const remainingLines: string[] = [];
     let foundStart = false;
@@ -105,7 +141,11 @@ export const convertSvgToReactComponent = (svgAssetText: string, indentationSpac
         }
         if (foundStart) {
             lineNumber++;
-            const convertedLine = convertEltLine(line, indentationSpaceCount + indentLevel * 4, lineNumber > 1);
+            const convertedLine = convertEltLine(line, indentationSpaceCount + indentLevel * 4, lineNumber > 1, classNameVariable);
+            if (lineNumber === 1) {
+                result.addClassNameFill = convertedLine.eltStyleInfo.addFill;
+                result.addClassNameStroke = convertedLine.eltStyleInfo.addStroke;
+            }
             switch (convertedLine.elementType) {
                 case ElementType.Opening: {
                     indentLevel++;
@@ -121,6 +161,6 @@ export const convertSvgToReactComponent = (svgAssetText: string, indentationSpac
             }
         }
     });
-    const result = remainingLines.join("\n");
+    result.svgComponentCode = remainingLines.join("\n");
     return result;
 }
