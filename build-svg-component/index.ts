@@ -41,7 +41,7 @@ if (Deno.args.length !== 1) {
     console.log("An SVG asset file name should be placed in the ./src/assets folder and that name (without \".svg\") should be provided");
     console.log("when running the script.");
     console.log("");
-    console.log("For example, from \"atoll-shared\" repo use \"npm run build:react-svg status-done-icon\"");
+    console.log("For example, from \"atoll-shared\" repo use \"npm run gen:react-svg -- status-done-icon\"");
 }
 else {
     const assetsFileBaseName = Deno.args[0];
