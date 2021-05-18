@@ -51,7 +51,7 @@ else {
 
     const scriptBasePathUrl = path.dirname(import.meta.url);
     const templatePathUrl = `${scriptBasePathUrl}/templates/svg-component-template-ts.template`;
-    const fileUrlPrefix = "file:///";
+    const fileUrlPrefix = "file://";
     if (!templatePathUrl.startsWith(fileUrlPrefix)) {
         console.log(`ERROR: ${templatePathUrl} didn't seem to use the correct format- unable to continue`);
     }
